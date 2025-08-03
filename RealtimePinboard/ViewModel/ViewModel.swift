@@ -33,6 +33,42 @@ class ViewModel: ObservableObject{
     @Published var droppedImages = [DroppedImage]()
     @Published var decorationItems = [DecorationItem]()
     
+    let dropboxAPI = DropboxAPI()
+    
+    var imagePaths: [String] = []
+    
+    /// 画像pathをフェッチ
+    func fetchImageFromDropbox() async{
+        var newImagePaths: [String] = []
+        do{
+            newImagePaths = try await dropboxAPI.fetchImageList()
+            // 差分
+            let difference = newImagePaths.filter { !imagePaths.contains($0) }
+            imagePaths.append(contentsOf: difference)
+            
+            //差分のみダウンロード
+            for path in difference{
+                do{
+                    let image = try await dropboxAPI.downloadImageWithRetry(path: path, accessToken: token)
+                    
+                    await MainActor.run {
+                        self.droppedImages.append(DroppedImage(image: image,
+                                                               imageRotation: Angle(degrees: Double.random(in: -1...1))))
+                    }
+                }catch{
+                    print("画像ダウンロード失敗")
+                    return
+                }
+                // 0.5秒スリープを入れて間隔を空ける
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+            
+        }catch{
+            print("画像パスリクエストエラー")
+            return
+        }
+    }
+    
     /// ドロップされたオブジェクトがImageであれば配列に追加
     /// - Parameter providers: ドロップされたオブジェクト
     /// - Returns: 追加されたか

@@ -92,7 +92,11 @@ struct ContentView: View {
                 }
                 
                 
-                
+                Button("Test"){
+                    Task{
+                        await vm.fetchImageFromDropbox()
+                    }
+                }
                 
             }
         }
